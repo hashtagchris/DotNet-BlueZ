@@ -27,9 +27,16 @@ namespace DeviceInfoConsoleApp
             // Scan briefly for devices.
             Console.WriteLine($"Scanning for {scanSeconds} seconds...");
 
-            await adapter.StartDiscoveryAsync();
-            await Task.Delay(TimeSpan.FromSeconds(scanSeconds));
-            await adapter.StopDiscoveryAsync();
+            using (await adapter.WatchDevicesAddedAsync(async device => {
+                // Write a message when we detect new devices during the scan.
+                string deviceDescription = await GetDeviceDescriptionAsync(device);
+                Console.WriteLine($"[NEW] {deviceDescription}");
+            }))
+            {
+                await adapter.StartDiscoveryAsync();
+                await Task.Delay(TimeSpan.FromSeconds(scanSeconds));
+                await adapter.StopDiscoveryAsync();
+            }
 
             var devices = await adapter.GetDevicesAsync();
             Console.WriteLine($"{devices.Count} device(s) found.");
@@ -42,12 +49,11 @@ namespace DeviceInfoConsoleApp
 
         static async Task OnDeviceFoundAsync(IDevice1 device)
         {
-            var deviceProperties = await device.GetAllAsync();
-            string response;
+            string deviceDescription = await GetDeviceDescriptionAsync(device);
             while (true)
             {
-                Console.WriteLine($"Connect to {deviceProperties.Alias} (Address: {deviceProperties.Address}, RSSI: {deviceProperties.RSSI})? yes/[no]?");
-                response = Console.ReadLine();
+                Console.WriteLine($"Connect to {deviceDescription}? yes/[no]?");
+                string response = Console.ReadLine();
                 if (response.Length == 0 || response.ToLowerInvariant().StartsWith("n"))
                 {
                     return;
@@ -108,6 +114,12 @@ namespace DeviceInfoConsoleApp
             {
                 Console.WriteLine();
             }
+        }
+
+        private static async Task<string> GetDeviceDescriptionAsync(IDevice1 device)
+        {
+            var deviceProperties = await device.GetAllAsync();
+            return $"{deviceProperties.Alias} (Address: {deviceProperties.Address}, RSSI: {deviceProperties.RSSI})";
         }
     }
 }
