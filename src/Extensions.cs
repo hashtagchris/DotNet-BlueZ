@@ -14,6 +14,29 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       return GetProxiesAsync<IDevice1>(adapter, BluezConstants.Device1Interface);
     }
 
+    public static async Task<IDevice1> GetDeviceAsync(this IAdapter1 adapter, string deviceAddress)
+    {
+      var devices = await GetProxiesAsync<IDevice1>(adapter, BluezConstants.Device1Interface);
+
+      var matches = new List<IDevice1>();
+      foreach (var device in devices)
+      {
+        if (String.Equals(await device.GetAddressAsync(), deviceAddress, StringComparison.OrdinalIgnoreCase))
+        {
+          matches.Add(device);
+        }
+      }
+
+      // BlueZ can get in a weird state, probably due to random public BLE addresses.
+      if (matches.Count > 1)
+      {
+        throw new Exception($"{matches.Count} devices found with the address {deviceAddress}!");
+      }
+
+      return matches.FirstOrDefault();
+    }
+
+
     public static Task<IDisposable> WatchDevicesAddedAsync(this IAdapter1 adapter, Action<IDevice1> handler)
     {
       void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
