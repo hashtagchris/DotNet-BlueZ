@@ -44,11 +44,11 @@ class Program
 
     Console.WriteLine("Connecting...");
     await device.ConnectAsync();
-    await device.WaitForPropertyValueAsync<bool>("Connected", device.GetConnectedAsync, value: true, timeout);
+    await device.WaitForPropertyValueAsync("Connected", value: true, timeout);
     Console.WriteLine("Connected.");
 
     Console.WriteLine("Waiting for services to resolve...");
-    await device.WaitForPropertyValueAsync<bool>("ServicesResolved", device.GetServicesResolvedAsync, value: true, timeout);
+    await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
 
     var servicesUUID = await device.GetUUIDsAsync();
     Console.WriteLine($"Device offers {servicesUUID.Length} service(s).");
@@ -86,5 +86,8 @@ class Program
     {
         Console.WriteLine("Model name and manufacturer characteristics not found.");
     }
+
+    await device.DisconnectAsync();
+    Console.WriteLine("Disconnected.");
   }
 }

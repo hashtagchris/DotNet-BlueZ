@@ -69,11 +69,11 @@ namespace DotNetBlueZTest1
             {
                 Console.WriteLine("Connecting...");
                 await device.ConnectAsync();
-                await device.WaitForPropertyValueAsync("Connected", device.GetConnectedAsync, value: true, timeout);
+                await device.WaitForPropertyValueAsync("Connected", value: true, timeout);
                 Console.WriteLine("Connected.");
 
                 Console.WriteLine("Waiting for services to resolve...");
-                await device.WaitForPropertyValueAsync("ServicesResolved", device.GetServicesResolvedAsync, value: true, timeout);
+                await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
 
                 var servicesUUIDs = await device.GetUUIDsAsync();
                 Console.WriteLine($"Device offers {servicesUUIDs.Length} service(s).");
