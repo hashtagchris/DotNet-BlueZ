@@ -69,11 +69,11 @@ namespace DotNetBlueZTest1
             {
                 Console.WriteLine("Connecting...");
                 await device.ConnectAsync();
-                await device.WaitForPropertyValueAsync("Connected", value: true, timeout);
+                await BlueZManager.WaitForPropertyValueAsync(device, "Connected", value: true, timeout);
                 Console.WriteLine("Connected.");
 
                 Console.WriteLine("Waiting for services to resolve...");
-                await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
+                await BlueZManager.WaitForPropertyValueAsync(device, "ServicesResolved", value: true, timeout);
 
                 var servicesUUIDs = await device.GetUUIDsAsync();
                 Console.WriteLine($"Device offers {servicesUUIDs.Length} service(s).");

@@ -19,6 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.6.0-preview6.19303.8" />
     <PackageReference Include="Tmds.DBus" Version="0.7.0" />
     <DotNetCliToolReference Include="Tmds.DBus.Tool" Version="0.7.0" />
   </ItemGroup>
