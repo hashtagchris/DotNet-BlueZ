@@ -13,7 +13,7 @@ D-Bus is the preferred interface for Bluetooth in userspace. The [Doing Bluetoot
 # Installation
 
 ```bash
-dotnet add package HashtagChris.DotNetBlueZ --version 1.0.5-alpha
+dotnet add package HashtagChris.DotNetBlueZ --version 1.1.0-alpha
 ```
 
 # Usage
@@ -24,8 +24,16 @@ dotnet add package HashtagChris.DotNetBlueZ --version 1.0.5-alpha
 using HashtagChris.DotNetBlueZ;
 ...
 
-string adapterName = "hci0";
-IAdapter1 adapter = BlueZManager.GetAdapter(adapterName);
+IAdapter1 adapter = (await BlueZManager.GetAdaptersAsync()).FirstOrDefault();
+```
+
+or get a particular adapter:
+
+```C#
+using HashtagChris.DotNetBlueZ;
+...
+
+IAdapter1 adapter = await BlueZManager.GetAdapterAsync(adapterName: "hci0");
 ```
 
 ## Scan for Bluetooth devices
@@ -44,13 +52,13 @@ You can optionally use the extension method `IAdapter1.WatchDevicesAddedAsync` t
 IReadOnlyList<IDevice1> devices = await adapter.GetDevicesAsync();
 ```
 
-## Connecting to a Device
+## Connect to a Device
 
 ```C#
 TimeSpan timeout = TimeSpan.FromSeconds(15);
 
 await device.ConnectAsync();
-await device.WaitForPropertyValueAsync("Connected", device.GetConnectedAsync, value: true, timeout);
+await device.WaitForPropertyValueAsync("Connected", value: true, timeout);
 ```
 
 ## Retrieve a GATT Service and Characteristic
@@ -63,7 +71,7 @@ string characteristicUUID = "00002a24-0000-1000-8000-00805f9b34fb";
 
 TimeSpan timeout = TimeSpan.FromSeconds(15);
 
-await device.WaitForPropertyValueAsync("ServicesResolved", device.GetServicesResolvedAsync, value: true, timeout);
+await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
 
 IGattService1 service = await device.GetServiceAsync(serviceUUID);
 IGattCharacteristic1 characteristic = await service.GetCharacteristicAsync(characteristicUUID);
