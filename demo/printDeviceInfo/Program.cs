@@ -12,7 +12,6 @@ using HashtagChris.DotNetBlueZ.Extensions;
 
 class Program
 {
-  static string defaultAdapterName = "hci0";
   static TimeSpan timeout = TimeSpan.FromSeconds(15);
 
   static async Task Main(string[] args)
@@ -25,14 +24,26 @@ class Program
     }
 
     var deviceAddress = args[0];
-    var adapterName = args.Length > 1 ? args[1] : defaultAdapterName;
 
-    // Get the Bluetooth adapter.
-    var adapter = BlueZManager.GetAdapter(adapterName);
-    if (adapter == null)
+    IAdapter1 adapter;
+    if (args.Length > 1)
     {
-      Console.WriteLine($"Bluetooth adapter '{adapterName}' not found.");
+      adapter = await BlueZManager.GetAdapterAsync(args[1]);
     }
+    else
+    {
+      var adapters = await BlueZManager.GetAdaptersAsync();
+      if (adapters.Count == 0)
+      {
+        throw new Exception("No Bluetooth adapters found.");
+      }
+
+      adapter = adapters.First();
+    }
+
+    var adapterPath = adapter.ObjectPath.ToString();
+    var adapterName = adapterPath.Substring(adapterPath.LastIndexOf("/") + 1);
+    Console.WriteLine($"Using Bluetooth adapter {adapterName}");
 
     // Find the Bluetooth peripheral.
     var device = await adapter.GetDeviceAsync(deviceAddress);

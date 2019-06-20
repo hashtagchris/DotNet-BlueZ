@@ -9,7 +9,6 @@ namespace Scan
 {
     class Program
     {
-        const string DefaultAdapterName = "hci0";
         static TimeSpan timeout = TimeSpan.FromSeconds(15);
 
         static async Task Main(string[] args)
@@ -21,17 +20,34 @@ namespace Scan
                 return;
             }
 
-            var adapterName = args.Length > 1 ? args[1] : DefaultAdapterName;
-            var adapter = BlueZManager.GetAdapter(adapterName);
+            IAdapter1 adapter;
+            if (args.Length > 1)
+            {
+                adapter = await BlueZManager.GetAdapterAsync(args[1]);
+            }
+            else
+            {
+                var adapters = await BlueZManager.GetAdaptersAsync();
+                if (adapters.Count == 0)
+                {
+                    throw new Exception("No Bluetooth adapters found.");
+                }
+
+                adapter = adapters.First();
+            }
+
+            var adapterPath = adapter.ObjectPath.ToString();
+            var adapterName = adapterPath.Substring(adapterPath.LastIndexOf("/") + 1);
+            Console.WriteLine($"Using Bluetooth adapter {adapterName}");
 
             // Print out the devices we already know about.
             var devices = await adapter.GetDevicesAsync();
-            Console.WriteLine($"{devices.Count} device(s) found ahead of scan.");
             foreach (var device in devices)
             {
                 string deviceDescription = await GetDeviceDescriptionAsync(device);
                 Console.WriteLine(deviceDescription);
             }
+            Console.WriteLine($"{devices.Count} device(s) found ahead of scan.");
 
             Console.WriteLine();
 

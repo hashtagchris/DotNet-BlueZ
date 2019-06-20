@@ -10,12 +10,12 @@ namespace HashtagChris.DotNetBlueZ.Extensions
   {
     public static Task<IReadOnlyList<IDevice1>> GetDevicesAsync(this IAdapter1 adapter)
     {
-      return GetProxiesAsync<IDevice1>(adapter, BluezConstants.Device1Interface);
+      return BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
     }
 
     public static async Task<IDevice1> GetDeviceAsync(this IAdapter1 adapter, string deviceAddress)
     {
-      var devices = await GetProxiesAsync<IDevice1>(adapter, BluezConstants.Device1Interface);
+      var devices = await BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
 
       var matches = new List<IDevice1>();
       foreach (var device in devices)
@@ -40,7 +40,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
     {
       void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
       {
-        if (IsMatch(adapter, BluezConstants.Device1Interface, args.objectPath, args.interfaces))
+        if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, adapter))
         {
           var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
           handler(device);
@@ -55,7 +55,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
     {
       void OnDeviceAdded((ObjectPath objectPath, String[] interfaces) args)
       {
-        if (IsMatch(adapter, BluezConstants.Device1Interface, args.objectPath, args.interfaces))
+        if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, adapter))
         {
           var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
           handler(device);
@@ -68,7 +68,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 
     public static async Task<IGattService1> GetServiceAsync(this IDevice1 device, string serviceUUID)
     {
-      var services = await GetProxiesAsync<IGattService1>(device, BluezConstants.GattServiceInterface);
+      var services = await BlueZManager.GetProxiesAsync<IGattService1>(BluezConstants.GattServiceInterface, device);
 
       foreach (var service in services)
       {
@@ -83,7 +83,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 
     public static async Task<IGattCharacteristic1> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
     {
-      var characteristics = await GetProxiesAsync<IGattCharacteristic1>(service, BluezConstants.GattCharacteristicInterface);
+      var characteristics = await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
 
       foreach (var characteristic in characteristics)
       {
@@ -164,39 +164,6 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       });
 
       return (taskSource.Task, watcher);
-    }
-
-    private static async Task<IReadOnlyList<T>> GetProxiesAsync<T>(IDBusObject rootObject, string interfaceName)
-    {
-      // Console.WriteLine("GetProxiesAsync called.");
-      var objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
-      var objects = await objectManager.GetManagedObjectsAsync();
-
-      var matchingObjectPaths = objects
-          .Where(obj => IsMatch(rootObject, interfaceName, obj.Key, obj.Value))
-          .Select(obj => obj.Key);
-
-      var proxies = matchingObjectPaths
-          .Select(objectPath => Connection.System.CreateProxy<T>(BluezConstants.DbusService, objectPath))
-          .ToList();
-
-      // Console.WriteLine($"GetProxiesAsync returning {proxies.Count} proxies of type {typeof(T)}.");
-      return proxies;
-    }
-
-    private static bool IsMatch(IDBusObject rootObject, string interfaceName, ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces)
-    {
-      return IsMatch(rootObject, interfaceName, objectPath, interfaces.Keys);
-    }
-
-    private static bool IsMatch(IDBusObject rootObject, string interfaceName, ObjectPath objectPath, ICollection<string> interfaces)
-    {
-      if (rootObject != null && !objectPath.ToString().StartsWith($"{rootObject.ObjectPath}/"))
-      {
-        return false;
-      }
-
-      return interfaces.Contains(interfaceName);
     }
   }
 }

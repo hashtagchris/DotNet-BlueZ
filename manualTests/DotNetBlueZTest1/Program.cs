@@ -22,7 +22,7 @@ namespace DotNetBlueZTest1
             }
 
             var adapterName = args.Length > 1 ? args[1] : DefaultAdapterName;
-            var adapter = BlueZManager.GetAdapter(adapterName);
+            var adapter = await BlueZManager.GetAdapterAsync(adapterName);
 
             // Scan briefly for devices.
             Console.WriteLine($"Scanning for {scanSeconds} seconds...");
