@@ -1,9 +1,9 @@
 # DotNet-BlueZ
-A quick and dirty library for BlueZ's D-Bus APIs. Focus is on Bluetooth Low Energy APIs.
+A quick and dirty library for BlueZ's D-Bus APIs. Primary focus is Bluetooth Low Energy.
 
-Uses [Tmds.DBus](https://github.com/tmds/Tmds.DBus) to access D-Bus. Tmds.DBus.Tool was used to generate the D-Bus object interfaces.
+[![DotNetBlueZ NuGet Badge](https://buildstats.info/nuget/HashtagChris.DotNetBlueZ?dWidth=70&includePreReleases=true)](https://www.nuget.org/packages/HashtagChris.DotNetBlueZ/)
 
-D-Bus is the preferred interface for Bluetooth in userspace. The [Doing Bluetooth Low Energy on Linux](https://elinux.org/images/3/32/Doing_Bluetooth_Low_Energy_on_Linux.pdf) presentation says "Use D-Bus API (documentation in [doc/]((https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc))) whenever possible".
+Uses [Tmds.DBus](https://github.com/tmds/Tmds.DBus) to access D-Bus. Tmds.DBus.Tool was used to generate the D-Bus object interfaces. D-Bus is the preferred interface for Bluetooth in userspace. The [Doing Bluetooth Low Energy on Linux](https://elinux.org/images/3/32/Doing_Bluetooth_Low_Energy_on_Linux.pdf) presentation says "Use D-Bus API (documentation in [doc/]((https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc))) whenever possible".
 
 # Requirements
 
@@ -30,9 +30,6 @@ IAdapter1 adapter = (await BlueZManager.GetAdaptersAsync()).FirstOrDefault();
 or get a particular adapter:
 
 ```C#
-using HashtagChris.DotNetBlueZ;
-...
-
 IAdapter1 adapter = await BlueZManager.GetAdapterAsync(adapterName: "hci0");
 ```
 
