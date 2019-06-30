@@ -79,13 +79,13 @@ namespace HashtagChris.DotNetBlueZ
       return m_proxy.WatchPropertiesAsync(handler);
     }
 
-    async void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
+    void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
     {
       if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, this))
       {
         var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
 
-        var dev = await Device.CreateAsync(device);
+        var dev = Device.Create(device);
         DeviceAdded?.Invoke(this, dev);
       }
     }

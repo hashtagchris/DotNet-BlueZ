@@ -7,27 +7,54 @@ namespace HashtagChris.DotNetBlueZ
   /// <summary>
   /// Adds events to IDevice1.
   /// </summary>
-  public class Device : IDevice1, IDisposable
+  public class Device : IDevice1
   {
-    internal static async Task<Device> CreateAsync(IDevice1 proxy)
+    // Factory method in case we want to add async code later.
+    internal static Device Create(IDevice1 proxy)
     {
-      var device = new Device
+      return new Device
       {
         m_proxy = proxy,
       };
-      device.m_watcher = await proxy.WatchPropertiesAsync(device.OnPropertyChanges);
-
-      return device;
     }
 
-    public void Dispose()
+    public event EventHandler Connected
     {
-      m_watcher.Dispose();
+      add
+      {
+        Console.WriteLine("Subscribing to Connected.");
+        AddEventHandler(m_connected, value);
+        Console.WriteLine("Subscribed!");
+      }
+      remove
+      {
+        RemoveEventHandler(m_connected, value);
+      }
     }
 
-    public event EventHandler Connected;
-    public event EventHandler Disconnected;
-    public event EventHandler ServicesResolved;
+    public event EventHandler Disconnected
+    {
+      add
+      {
+        AddEventHandler(m_disconnected, value);
+      }
+      remove
+      {
+        RemoveEventHandler(m_disconnected, value);
+      }
+    }
+
+    public event EventHandler ServicesResolved
+    {
+      add
+      {
+        AddEventHandler(m_servicesResolved, value);
+      }
+      remove
+      {
+        RemoveEventHandler(m_servicesResolved, value);
+      }
+    }
 
     public ObjectPath ObjectPath => m_proxy.ObjectPath;
 
@@ -81,6 +108,42 @@ namespace HashtagChris.DotNetBlueZ
       return m_proxy.WatchPropertiesAsync(handler);
     }
 
+    private void AddEventHandler(EventHandler handler, EventHandler callback)
+    {
+      lock (m_eventLock)
+      {
+        if (m_watcher == null)
+        {
+          Console.WriteLine("Creating property watcher (could hang here)...");
+          m_watcher = m_proxy.WatchPropertiesAsync(OnPropertyChanges).GetAwaiter().GetResult();
+          Console.WriteLine("Property watcher created.");
+        }
+
+        Console.WriteLine("Adding callback.");
+        handler += callback;
+        Console.WriteLine("Callback added.");
+      }
+    }
+
+    private void RemoveEventHandler(EventHandler handler, EventHandler callback)
+    {
+      lock (m_eventLock)
+      {
+        handler -= callback;
+
+        if (!EventListenersRegistered())
+        {
+          m_watcher.Dispose();
+          m_watcher = null;
+        }
+      }
+    }
+
+    private bool EventListenersRegistered()
+    {
+      return m_connected != null;
+    }
+
     private void OnPropertyChanges(PropertyChanges changes)
     {
       foreach (var pair in changes.Changed)
@@ -90,18 +153,18 @@ namespace HashtagChris.DotNetBlueZ
           case "Connected":
             if (true.Equals(pair.Value))
             {
-              Connected?.Invoke(this, new EventArgs());
+              m_connected?.Invoke(this, new EventArgs());
             }
             else
             {
-              Disconnected?.Invoke(this, new EventArgs());
+              m_disconnected?.Invoke(this, new EventArgs());
             }
             break;
 
           case "ServicesResolved":
             if (true.Equals(pair.Value))
             {
-              ServicesResolved?.Invoke(this, new EventArgs());
+              m_servicesResolved?.Invoke(this, new EventArgs());
             }
             break;
         }
@@ -110,5 +173,13 @@ namespace HashtagChris.DotNetBlueZ
 
     private IDevice1 m_proxy;
     private IDisposable m_watcher;
+
+    private event EventHandler m_connected;
+
+    private event EventHandler m_disconnected;
+
+    private event EventHandler m_servicesResolved;
+
+    private Object m_eventLock = new Object();
   }
 }

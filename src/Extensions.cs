@@ -8,11 +8,11 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 {
   public static class Extensions
   {
-    public static async Task<Device[]> GetDevicesAsync(this IAdapter1 adapter)
+    public static async Task<IReadOnlyList<Device>> GetDevicesAsync(this IAdapter1 adapter)
     {
       var devices = await BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
 
-      return await Task.WhenAll(devices.Select(Device.CreateAsync));
+      return devices.Select(Device.Create).ToList();
     }
 
     public static async Task<Device> GetDeviceAsync(this IAdapter1 adapter, string deviceAddress)
@@ -37,20 +37,20 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       var dev = matches.FirstOrDefault();
       if (dev != null)
       {
-        return await Device.CreateAsync(dev);
+        return Device.Create(dev);
       }
       return null;
     }
 
     public static Task<IDisposable> WatchDevicesAddedAsync(this IAdapter1 adapter, Action<Device> handler)
     {
-      async void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
+      void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
       {
         if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, adapter))
         {
           var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
 
-          var dev = await Device.CreateAsync(device);
+          var dev = Device.Create(device);
           handler(dev);
         }
       }
