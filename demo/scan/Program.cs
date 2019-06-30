@@ -28,7 +28,7 @@ namespace Scan
             else
             {
                 var adapters = await BlueZManager.GetAdaptersAsync();
-                if (adapters.Count == 0)
+                if (adapters.Length == 0)
                 {
                     throw new Exception("No Bluetooth adapters found.");
                 }
@@ -47,7 +47,7 @@ namespace Scan
                 string deviceDescription = await GetDeviceDescriptionAsync(device);
                 Console.WriteLine(deviceDescription);
             }
-            Console.WriteLine($"{devices.Count} device(s) found ahead of scan.");
+            Console.WriteLine($"{devices.Length} device(s) found ahead of scan.");
 
             Console.WriteLine();
 

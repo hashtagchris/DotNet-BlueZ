@@ -8,7 +8,7 @@ namespace HashtagChris.DotNetBlueZ
 {
   public static class BlueZManager
   {
-    public static async Task<IAdapter1> GetAdapterAsync(string adapterName)
+    public static async Task<Adapter> GetAdapterAsync(string adapterName)
     {
       var adapterObjectPath = $"/org/bluez/{adapterName}";
       var adapter = Connection.System.CreateProxy<IAdapter1>(BluezConstants.DbusService, adapterObjectPath);
@@ -22,12 +22,14 @@ namespace HashtagChris.DotNetBlueZ
         throw new Exception($"Bluetooth adapter {adapterName} not found.");
       }
 
-      return adapter;
+      return await Adapter.CreateAsync(adapter);
     }
 
-    public static Task<IReadOnlyList<IAdapter1>> GetAdaptersAsync()
+    public static async Task<Adapter[]> GetAdaptersAsync()
     {
-      return GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
+      var adapters = await GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
+
+      return await Task.WhenAll(adapters.Select(Adapter.CreateAsync));
     }
 
     /// <param name="interfaceName">The interface to search for</param>
