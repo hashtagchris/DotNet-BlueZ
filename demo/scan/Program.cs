@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using HashtagChris.DotNetBlueZ;
 using HashtagChris.DotNetBlueZ.Extensions;
@@ -28,7 +27,7 @@ namespace Scan
             else
             {
                 var adapters = await BlueZManager.GetAdaptersAsync();
-                if (adapters.Length == 0)
+                if (adapters.Count == 0)
                 {
                     throw new Exception("No Bluetooth adapters found.");
                 }
@@ -47,7 +46,7 @@ namespace Scan
                 string deviceDescription = await GetDeviceDescriptionAsync(device);
                 Console.WriteLine(deviceDescription);
             }
-            Console.WriteLine($"{devices.Length} device(s) found ahead of scan.");
+            Console.WriteLine($"{devices.Count} device(s) found ahead of scan.");
 
             Console.WriteLine();
 

@@ -4,7 +4,11 @@
 
 * In C# are you supposed to unsubscribe from every event to prevent leaks?
 
+Answer: Generally yes, so the garbage collection can collect the subscribing object.
+
 * Should I call WatchPropertiesAsync only when the first event is subscribed to? I'll have to call it synchronously, and add mutexs to do refcounting reliably.
+
+Update: Tried this, resulted in a hang on `m_proxy.WatchPropertiesAsync(OnPropertyChanges).GetAwaiter().GetResult()`.
 
 ```C#
   public event EventHandler Disconnected

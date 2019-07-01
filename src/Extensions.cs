@@ -8,7 +8,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 {
   public static class Extensions
   {
-    public static async Task<Device[]> GetDevicesAsync(this IAdapter1 adapter)
+    public static async Task<IReadOnlyList<Device>> GetDevicesAsync(this IAdapter1 adapter)
     {
       var devices = await BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
 

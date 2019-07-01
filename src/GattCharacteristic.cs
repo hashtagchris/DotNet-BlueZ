@@ -1,0 +1,106 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Tmds.DBus;
+
+namespace HashtagChris.DotNetBlueZ
+{
+  public delegate void CharacteristicChangeEventHandler(GattCharacteristic sender, CharacteristicChangeEventArgs e);
+
+  public class CharacteristicChangeEventArgs : EventArgs
+  {
+    public PropertyChanges PropertyChanges { get; set; }
+  }
+
+  public class GattCharacteristic : IGattCharacteristic1, IDisposable
+  {
+    ~GattCharacteristic()
+    {
+      Dispose();
+    }
+
+    internal static async Task<GattCharacteristic> CreateAsync(IGattCharacteristic1 proxy)
+    {
+      var characteristic = new GattCharacteristic
+      {
+        m_proxy = proxy,
+      };
+      characteristic.m_propertyWatcher = await proxy.WatchPropertiesAsync(characteristic.OnPropertyChanges);
+
+      return characteristic;
+    }
+
+    public void Dispose()
+    {
+      m_propertyWatcher?.Dispose();
+      m_propertyWatcher = null;
+
+      GC.SuppressFinalize(this);
+    }
+
+    public event CharacteristicChangeEventHandler PropertyChange;
+
+    public ObjectPath ObjectPath => m_proxy.ObjectPath;
+
+    public Task<(CloseSafeHandle fd, ushort mtu)> AcquireNotifyAsync(IDictionary<string, object> Options)
+    {
+      return m_proxy.AcquireNotifyAsync(Options);
+    }
+
+    public Task<(CloseSafeHandle fd, ushort mtu)> AcquireWriteAsync(IDictionary<string, object> Options)
+    {
+      return m_proxy.AcquireWriteAsync(Options);
+    }
+
+    public Task<GattCharacteristic1Properties> GetAllAsync()
+    {
+      return m_proxy.GetAllAsync();
+    }
+
+    public Task<T> GetAsync<T>(string prop)
+    {
+      return m_proxy.GetAsync<T>(prop);
+    }
+
+    public Task<byte[]> ReadValueAsync(IDictionary<string, object> Options)
+    {
+      return m_proxy.ReadValueAsync(Options);
+    }
+
+    public Task SetAsync(string prop, object val)
+    {
+      return m_proxy.SetAsync(prop, val);
+    }
+
+    public Task StartNotifyAsync()
+    {
+      return m_proxy.StartNotifyAsync();
+    }
+
+    public Task StopNotifyAsync()
+    {
+      return m_proxy.StopNotifyAsync();
+    }
+
+    public Task<IDisposable> WatchPropertiesAsync(Action<PropertyChanges> handler)
+    {
+      return m_proxy.WatchPropertiesAsync(handler);
+    }
+
+    public Task WriteValueAsync(byte[] Value, IDictionary<string, object> Options)
+    {
+      return m_proxy.WriteValueAsync(Value, Options);
+    }
+
+    private void OnPropertyChanges(PropertyChanges changes)
+    {
+      PropertyChange?.Invoke(this, new CharacteristicChangeEventArgs
+      {
+        PropertyChanges = changes,
+      });
+    }
+
+    private IGattCharacteristic1 m_proxy;
+    private IDisposable m_propertyWatcher;
+  }
+}

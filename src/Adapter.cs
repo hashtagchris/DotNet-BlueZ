@@ -1,17 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HashtagChris.DotNetBlueZ.Extensions;
 using Tmds.DBus;
 
 namespace HashtagChris.DotNetBlueZ
 {
-  public delegate void DeviceEventHandler(Adapter sender, Device device);
+  public delegate Task DeviceChangeEventHandlerAsync(Adapter sender, DeviceFoundEventArgs eventArgs);
+
+  public delegate Task AdapterEventHandlerAsync(Adapter sender, BlueZEventArgs eventArgs);
 
   /// <summary>
   /// Add events to IAdapter1.
   /// </summary>
   public class Adapter : IAdapter1, IDisposable
   {
+    ~Adapter()
+    {
+      Dispose();
+    }
+
     internal static async Task<Adapter> CreateAsync(IAdapter1 proxy)
     {
       var adapter = new Adapter
@@ -20,17 +28,47 @@ namespace HashtagChris.DotNetBlueZ
       };
 
       var objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
-      adapter.m_watcher = await objectManager.WatchInterfacesAddedAsync(adapter.OnDeviceAdded);
+      adapter.m_interfacesWatcher = await objectManager.WatchInterfacesAddedAsync(adapter.OnDeviceAdded);
+      adapter.m_propertyWatcher = await proxy.WatchPropertiesAsync(adapter.OnPropertyChanges);
 
       return adapter;
     }
 
     public void Dispose()
     {
-      m_watcher.Dispose();
+      m_interfacesWatcher?.Dispose();
+      m_interfacesWatcher = null;
+
+      GC.SuppressFinalize(this);
     }
 
-    public event DeviceEventHandler DeviceAdded;
+    public event DeviceChangeEventHandlerAsync DeviceFound
+    {
+      add
+      {
+        m_deviceFound += value;
+        FireEventForExistingDevicesAsync();
+      }
+      remove
+      {
+        m_deviceFound -= value;
+      }
+    }
+
+    public event AdapterEventHandlerAsync PoweredOn
+    {
+      add
+      {
+        m_poweredOn += value;
+        FireEventIfPropertyAlreadyTrueAsync(m_poweredOn, "Powered");
+      }
+      remove
+      {
+        m_poweredOn -= value;
+      }
+    }
+
+    public event AdapterEventHandlerAsync PoweredOff;
 
     public ObjectPath ObjectPath => m_proxy.ObjectPath;
 
@@ -79,18 +117,67 @@ namespace HashtagChris.DotNetBlueZ
       return m_proxy.WatchPropertiesAsync(handler);
     }
 
-    async void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
+    private async void FireEventForExistingDevicesAsync()
+    {
+      var devices = await this.GetDevicesAsync();
+      foreach (var device in devices)
+      {
+        m_deviceFound?.Invoke(this, new DeviceFoundEventArgs(device, isStateChange: false));
+      }
+    }
+
+    private async void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
     {
       if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, this))
       {
         var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
 
         var dev = await Device.CreateAsync(device);
-        DeviceAdded?.Invoke(this, dev);
+        m_deviceFound?.Invoke(this, new DeviceFoundEventArgs(dev));
+      }
+    }
+
+    private async void FireEventIfPropertyAlreadyTrueAsync(AdapterEventHandlerAsync handler, string prop)
+    {
+      try
+      {
+        var value = await m_proxy.GetAsync<bool>(prop);
+        if (value)
+        {
+          // TODO: Suppress duplicate event from OnPropertyChanges.
+          handler?.Invoke(this, new BlueZEventArgs(isStateChange: false));
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error checking if '{prop}' is already true: {ex}");
+      }
+    }
+
+    private void OnPropertyChanges(PropertyChanges changes)
+    {
+      foreach (var pair in changes.Changed)
+      {
+        switch (pair.Key)
+        {
+          case "Powered":
+            if (true.Equals(pair.Value))
+            {
+              m_poweredOn?.Invoke(this, new BlueZEventArgs());
+            }
+            else
+            {
+              PoweredOff?.Invoke(this, new BlueZEventArgs());
+            }
+            break;
+        }
       }
     }
 
     private IAdapter1 m_proxy;
-    private IDisposable m_watcher;
+    private IDisposable m_interfacesWatcher;
+    private IDisposable m_propertyWatcher;
+    private DeviceChangeEventHandlerAsync m_deviceFound;
+    private AdapterEventHandlerAsync m_poweredOn;
   }
 }

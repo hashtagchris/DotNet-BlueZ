@@ -25,7 +25,7 @@ namespace HashtagChris.DotNetBlueZ
       return await Adapter.CreateAsync(adapter);
     }
 
-    public static async Task<Adapter[]> GetAdaptersAsync()
+    public static async Task<IReadOnlyList<Adapter>> GetAdaptersAsync()
     {
       var adapters = await GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
 

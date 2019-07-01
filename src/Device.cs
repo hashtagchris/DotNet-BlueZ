@@ -4,30 +4,63 @@ using Tmds.DBus;
 
 namespace HashtagChris.DotNetBlueZ
 {
+  public delegate Task DeviceEventHandlerAsync(Device sender, BlueZEventArgs eventArgs);
+
   /// <summary>
   /// Adds events to IDevice1.
   /// </summary>
   public class Device : IDevice1, IDisposable
   {
+    ~Device()
+    {
+      Dispose();
+    }
+
     internal static async Task<Device> CreateAsync(IDevice1 proxy)
     {
       var device = new Device
       {
         m_proxy = proxy,
       };
-      device.m_watcher = await proxy.WatchPropertiesAsync(device.OnPropertyChanges);
+      device.m_propertyWatcher = await proxy.WatchPropertiesAsync(device.OnPropertyChanges);
 
       return device;
     }
 
     public void Dispose()
     {
-      m_watcher.Dispose();
+      m_propertyWatcher?.Dispose();
+      m_propertyWatcher = null;
+
+      GC.SuppressFinalize(this);
     }
 
-    public event EventHandler Connected;
-    public event EventHandler Disconnected;
-    public event EventHandler ServicesResolved;
+    public event DeviceEventHandlerAsync Connected
+    {
+      add
+      {
+        m_connected += value;
+        FireEventIfPropertyAlreadyTrueAsync(m_connected, "Connected");
+      }
+      remove
+      {
+        m_connected -= value;
+      }
+    }
+
+    public event DeviceEventHandlerAsync Disconnected;
+    public event DeviceEventHandlerAsync ServicesResolved
+    {
+      add
+      {
+        m_resolved += value;
+        FireEventIfPropertyAlreadyTrueAsync(m_resolved, "ServicesResolved");
+      }
+      remove
+      {
+        m_resolved -= value;
+      }
+    }
 
     public ObjectPath ObjectPath => m_proxy.ObjectPath;
 
@@ -81,6 +114,23 @@ namespace HashtagChris.DotNetBlueZ
       return m_proxy.WatchPropertiesAsync(handler);
     }
 
+    private async void FireEventIfPropertyAlreadyTrueAsync(DeviceEventHandlerAsync handler, string prop)
+    {
+      try
+      {
+        var value = await m_proxy.GetAsync<bool>(prop);
+        if (value)
+        {
+          // TODO: Suppress duplicate event from OnPropertyChanges.
+          handler?.Invoke(this, new BlueZEventArgs(isStateChange: false));
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error checking if '{prop}' is already true: {ex}");
+      }
+    }
+
     private void OnPropertyChanges(PropertyChanges changes)
     {
       foreach (var pair in changes.Changed)
@@ -90,18 +140,18 @@ namespace HashtagChris.DotNetBlueZ
           case "Connected":
             if (true.Equals(pair.Value))
             {
-              Connected?.Invoke(this, new EventArgs());
+              m_connected?.Invoke(this, new BlueZEventArgs());
             }
             else
             {
-              Disconnected?.Invoke(this, new EventArgs());
+              Disconnected?.Invoke(this, new BlueZEventArgs());
             }
             break;
 
           case "ServicesResolved":
             if (true.Equals(pair.Value))
             {
-              ServicesResolved?.Invoke(this, new EventArgs());
+              m_resolved?.Invoke(this, new BlueZEventArgs());
             }
             break;
         }
@@ -109,6 +159,8 @@ namespace HashtagChris.DotNetBlueZ
     }
 
     private IDevice1 m_proxy;
-    private IDisposable m_watcher;
+    private IDisposable m_propertyWatcher;
+    private event DeviceEventHandlerAsync m_connected;
+    private event DeviceEventHandlerAsync m_resolved;
   }
 }
