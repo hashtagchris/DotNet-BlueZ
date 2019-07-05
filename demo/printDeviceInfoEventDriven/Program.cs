@@ -9,10 +9,8 @@ namespace printDeviceInfoEventDriven
 {
   class Program
   {
-    // Service and Characteristic UUIDs are from https://github.com/hashtagchris/early-iOS-BluetoothLowEnergy-tests/tree/master/myFirstPeripheral
-    // Feel free to replace with your own.
-    private const string ServiceUUID = "0000cafe-0000-1000-8000-00805f9b34fb";
-    private const string CharacteristicUUID = "0000c0ff-0000-1000-8000-00805f9b34fb";
+    private const string ServiceUUID = GattConstants.CurrentTimeServiceUUID;
+    private const string CharacteristicUUID = GattConstants.CurrentTimeCharacteristicUUID;
 
     private static string s_deviceFilter;
 
@@ -193,16 +191,38 @@ namespace printDeviceInfoEventDriven
         }
 
         Console.WriteLine();
-        Console.WriteLine("Reading GATT characteristic...");
-        var valueBytes = await characteristic.ReadValueAsync(timeout);
-        Console.WriteLine($"Characteristic value (hex): {BitConverter.ToString(valueBytes)}");
-        try
+        characteristic.Value += characteristic_Value;
+
+        // Console.WriteLine("Reading GATT characteristic...");
+        // var valueBytes = await characteristic.ReadValueAsync(timeout);
+      }
+      catch (Exception ex)
+      {
+        Console.Error.WriteLine(ex);
+      }
+    }
+
+    private static async Task characteristic_Value(GattCharacteristic characteristic, GattCharacteristicValueEventArgs e)
+    {
+      try
+      {
+        var uuid = await characteristic.GetUUIDAsync();
+        Console.WriteLine($"UUID: {uuid}; Status change: {e.IsStateChange}");
+        if (String.Equals(uuid, GattConstants.CurrentTimeCharacteristicUUID, StringComparison.OrdinalIgnoreCase))
         {
-          var stringValue = Encoding.UTF8.GetString(valueBytes);
-          Console.WriteLine($"Characteristic value (UTF-8): \"{stringValue}\"");
+          var currentTime = ReadCurrentTime(e.Value);
+          Console.WriteLine($"Current time: {currentTime}");
         }
-        catch (Exception)
+        else
         {
+          // Default
+          Console.WriteLine($"Characteristic value (hex): {BitConverter.ToString(e.Value)}");
+          try
+          {
+            var stringValue = Encoding.UTF8.GetString(e.Value);
+            Console.WriteLine($"Characteristic value (UTF-8): \"{stringValue}\"");
+          }
+          catch (Exception) {}
         }
       }
       catch (Exception ex)
@@ -215,6 +235,24 @@ namespace printDeviceInfoEventDriven
     {
       var deviceProperties = await device.GetAllAsync();
       return $"{deviceProperties.Address} (Alias: {deviceProperties.Alias}, RSSI: {deviceProperties.RSSI})";
+    }
+
+    private static DateTime ReadCurrentTime(byte[] value)
+    {
+      if (value.Length < 7)
+      {
+        throw new Exception("7+ bytes are required for the current date time.");
+      }
+
+      // https://github.com/sputnikdev/bluetooth-gatt-parser/blob/master/src/main/resources/gatt/characteristic/org.bluetooth.characteristic.date_time.xml
+      var year = value[0] + 256 * value[1];
+      var month = value[2];
+      var day = value[3];
+      var hour = value[4];
+      var minute = value[5];
+      var second = value[6];
+
+      return new DateTime(year, month, day, hour, minute, second, DateTimeKind.Local);
     }
   }
 }

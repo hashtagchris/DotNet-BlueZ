@@ -76,7 +76,7 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       return null;
     }
 
-    public static async Task<IGattCharacteristic1> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
+    public static async Task<GattCharacteristic> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
     {
       var characteristics = await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
 
@@ -86,7 +86,8 @@ namespace HashtagChris.DotNetBlueZ.Extensions
         // Console.WriteLine($"Checking {uuid}");
         if (String.Equals(uuid, characteristicUUID, StringComparison.OrdinalIgnoreCase))
         {
-          return characteristic;
+          var ch = await GattCharacteristic.CreateAsync(characteristic);
+          return ch;
         }
       }
 
