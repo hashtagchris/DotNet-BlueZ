@@ -9,16 +9,25 @@ namespace printDeviceInfoEventDriven
 {
   class Program
   {
+    // Service and Characteristic UUIDs are from https://github.com/hashtagchris/early-iOS-BluetoothLowEnergy-tests/tree/master/myFirstPeripheral
+    // Feel free to replace with your own.
+    private const string ServiceUUID = "0000cafe-0000-1000-8000-00805f9b34fb";
+    private const string CharacteristicUUID = "0000c0ff-0000-1000-8000-00805f9b34fb";
+
+    private static string s_deviceFilter;
+
+    private static TimeSpan timeout = TimeSpan.FromSeconds(15);
+
     private static async Task Main(string[] args)
     {
       if (args.Length < 1)
       {
-        Console.WriteLine("Usage: PrintDeviceInfo <deviceNameSubstring> [adapterName]");
+        Console.WriteLine("Usage: PrintDeviceInfo <deviceAddress>|<deviceNameSubstring> [adapterName]");
         Console.WriteLine("Example: PrintDeviceInfo phone hci1");
         return;
       }
 
-      s_deviceNameSubstring = args[0];
+      s_deviceFilter = args[0];
 
       Adapter adapter;
       if (args.Length > 1)
@@ -47,107 +56,165 @@ namespace printDeviceInfoEventDriven
 
     private static async Task adapter_PoweredOnAsync(Adapter adapter, BlueZEventArgs e)
     {
-      if (e.IsStateChange)
+      try
       {
-        Console.WriteLine("Powered on.");
-      }
-      else
-      {
-        Console.WriteLine("Already powered on.");
-      }
+        if (e.IsStateChange)
+        {
+          Console.WriteLine("Bluetooth adapter powered on.");
+        }
+        else
+        {
+          Console.WriteLine("Bluetooth adapter already powered on.");
+        }
 
-      Console.WriteLine("Starting scan...");
-      await adapter.StartDiscoveryAsync();
+        Console.WriteLine("Starting scan...");
+        await adapter.StartDiscoveryAsync();
+      }
+      catch (Exception ex)
+      {
+        Console.Error.WriteLine(ex);
+      }
     }
 
     private static async Task adapter_DeviceFoundAsync(Adapter adapter, DeviceFoundEventArgs e)
     {
-      var device = e.Device;
-
-      string deviceDescription = await GetDeviceDescriptionAsync(device);
-      if (e.IsStateChange)
+      try
       {
-        Console.WriteLine($"Found: [NEW] {deviceDescription}");
+        var device = e.Device;
+
+        var deviceDescription = await GetDeviceDescriptionAsync(device);
+        if (e.IsStateChange)
+        {
+          Console.WriteLine($"Found: [NEW] {deviceDescription}");
+        }
+        else
+        {
+          Console.WriteLine($"Found: {deviceDescription}");
+        }
+
+        var deviceAddress = await device.GetAddressAsync();
+        var deviceName = await device.GetAliasAsync();
+        if (deviceAddress.Equals(s_deviceFilter, StringComparison.OrdinalIgnoreCase)
+            || deviceName.Contains(s_deviceFilter, StringComparison.OrdinalIgnoreCase))
+        {
+          Console.WriteLine("Stopping scan....");
+          try
+          {
+            await adapter.StopDiscoveryAsync();
+            Console.WriteLine("Stopped.");
+          }
+          catch (Exception ex)
+          {
+            // Best effort. Sometimes BlueZ gets in a state where you can't stop the scan.
+            Console.Error.WriteLine($"Error stopping scan: {ex.Message}");
+          }
+
+          device.Connected += device_ConnectedAsync;
+          device.Disconnected += device_DisconnectedAsync;
+          device.ServicesResolved += device_ServicesResolvedAsync;
+          Console.WriteLine($"Connecting to {await device.GetAddressAsync()}...");
+          await device.ConnectAsync();
+        }
       }
-      else
+      catch (Exception ex)
       {
-        Console.WriteLine($"Found: {deviceDescription}");
-      }
-
-      var deviceName = await device.GetAliasAsync();
-      if (deviceName.Contains(s_deviceNameSubstring, StringComparison.OrdinalIgnoreCase))
-      {
-        Console.WriteLine("Stopping scan....");
-        await adapter.StopDiscoveryAsync();
-        Console.WriteLine("Stopped.");
-
-        device.Connected += device_ConnectedAsync;
-        device.Disconnected += device_DisconnectedAsync;
-        device.ServicesResolved += device_ServicesResolvedAsync;
-        Console.WriteLine("Connecting...");
-        await device.ConnectAsync();
+        Console.Error.WriteLine(ex);
       }
     }
 
     private static async Task device_ConnectedAsync(Device device, BlueZEventArgs e)
     {
-      if (e.IsStateChange)
+      try
       {
-        Console.WriteLine($"Connected to {await device.GetAddressAsync()}");
+        if (e.IsStateChange)
+        {
+          Console.WriteLine($"Connected to {await device.GetAddressAsync()}");
+        }
+        else
+        {
+          Console.WriteLine($"Already connected to {await device.GetAddressAsync()}");
+        }
       }
-      else
+      catch (Exception ex)
       {
-        Console.WriteLine($"Already connected to {await device.GetAddressAsync()}");
+        Console.Error.WriteLine(ex);
       }
     }
 
     private static async Task device_DisconnectedAsync(Device device, BlueZEventArgs e)
     {
-      Console.WriteLine($"Disconnected from {await device.GetAddressAsync()}");
+      try
+      {
+        Console.WriteLine($"Disconnected from {await device.GetAddressAsync()}");
 
-      await Task.Delay(TimeSpan.FromSeconds(15));
+        await Task.Delay(TimeSpan.FromSeconds(15));
 
-      Console.WriteLine("Attempting to reconnect...");
-      await device.ConnectAsync();
+        Console.WriteLine($"Attempting to reconnect to {await device.GetAddressAsync()}...");
+        await device.ConnectAsync();
+      }
+      catch (Exception ex)
+      {
+        Console.Error.WriteLine(ex);
+      }
     }
 
     private static async Task device_ServicesResolvedAsync(Device device, BlueZEventArgs e)
     {
-      if (e.IsStateChange)
+      try
       {
-        Console.WriteLine($"Services resolved for {await device.GetAddressAsync()}");
+        if (e.IsStateChange)
+        {
+          Console.WriteLine($"Services resolved for {await device.GetAddressAsync()}");
+        }
+        else
+        {
+          Console.WriteLine($"Services already resolved for {await device.GetAddressAsync()}");
+        }
+
+        var servicesUUIDs = await device.GetUUIDsAsync();
+        Console.WriteLine($"Device offers {servicesUUIDs.Length} service(s).");
+        // foreach (var uuid in servicesUUIDs)
+        // {
+        //   Console.WriteLine(uuid);
+        // }
+
+        var service = await device.GetServiceAsync(ServiceUUID);
+        if (service == null)
+        {
+          Console.WriteLine($"Service UUID {ServiceUUID} notfound. Do you need to pair first?");
+          return;
+        }
+
+        var characteristic = await service.GetCharacteristicAsync(CharacteristicUUID);
+        if (characteristic == null)
+        {
+          Console.WriteLine($"Characteristic UUID {CharacteristicUUID} not found within service {ServiceUUID}.");
+          return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Reading GATT characteristic...");
+        var valueBytes = await characteristic.ReadValueAsync(timeout);
+        Console.WriteLine($"Characteristic value (hex): {BitConverter.ToString(valueBytes)}");
+        try
+        {
+          var stringValue = Encoding.UTF8.GetString(valueBytes);
+          Console.WriteLine($"Characteristic value (UTF-8): \"{stringValue}\"");
+        }
+        catch (Exception)
+        {
+        }
       }
-      else
+      catch (Exception ex)
       {
-        Console.WriteLine($"Services already resolved for {await device.GetAddressAsync()}");
+        Console.Error.WriteLine(ex);
       }
-
-      var servicesUUID = await device.GetUUIDsAsync();
-      Console.WriteLine($"Device offers {servicesUUID.Length} service(s).");
-
-      var deviceInfoServiceFound = servicesUUID.Any(uuid => String.Equals(uuid, GattConstants.BatteryServiceUUID, StringComparison.OrdinalIgnoreCase));
-      if (!deviceInfoServiceFound)
-      {
-        Console.WriteLine("Device doesn't have the Device Information Service. Try pairing first?");
-        return;
-      }
-
-      var service = await device.GetServiceAsync(GattConstants.BatteryServiceUUID);
-      var characteristic = await service.GetCharacteristicAsync(GattConstants.BatteryLevelCharacteristicUUID);
-
-      Console.WriteLine("Reading current battery level...");
-      var valueBytes = await characteristic.ReadValueAsync(timeout);
-      Console.WriteLine($"Battery level: {valueBytes[0]}%");
     }
 
     private static async Task<string> GetDeviceDescriptionAsync(IDevice1 device)
     {
       var deviceProperties = await device.GetAllAsync();
-      return $"{deviceProperties.Alias} (Address: {deviceProperties.Address}, RSSI: {deviceProperties.RSSI})";
+      return $"{deviceProperties.Address} (Alias: {deviceProperties.Alias}, RSSI: {deviceProperties.RSSI})";
     }
-
-    private static string s_deviceNameSubstring;
-
-    private static TimeSpan timeout = TimeSpan.FromSeconds(15);
   }
 }

@@ -65,7 +65,9 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 
       foreach (var service in services)
       {
-        if (await service.GetUUIDAsync() == serviceUUID)
+        var uuid = await service.GetUUIDAsync();
+        // Console.WriteLine($"Checking {uuid}");
+        if (String.Equals(uuid, serviceUUID, StringComparison.OrdinalIgnoreCase))
         {
           return service;
         }
@@ -80,7 +82,9 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 
       foreach (var characteristic in characteristics)
       {
-        if (await characteristic.GetUUIDAsync() == characteristicUUID)
+        var uuid = await characteristic.GetUUIDAsync();
+        // Console.WriteLine($"Checking {uuid}");
+        if (String.Equals(uuid, characteristicUUID, StringComparison.OrdinalIgnoreCase))
         {
           return characteristic;
         }
