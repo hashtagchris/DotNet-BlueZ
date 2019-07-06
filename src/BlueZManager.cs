@@ -8,7 +8,7 @@ namespace HashtagChris.DotNetBlueZ
 {
   public static class BlueZManager
   {
-    public static async Task<IAdapter1> GetAdapterAsync(string adapterName)
+    public static async Task<Adapter> GetAdapterAsync(string adapterName)
     {
       var adapterObjectPath = $"/org/bluez/{adapterName}";
       var adapter = Connection.System.CreateProxy<IAdapter1>(BluezConstants.DbusService, adapterObjectPath);
@@ -22,12 +22,32 @@ namespace HashtagChris.DotNetBlueZ
         throw new Exception($"Bluetooth adapter {adapterName} not found.");
       }
 
-      return adapter;
+      return await Adapter.CreateAsync(adapter);
     }
 
-    public static Task<IReadOnlyList<IAdapter1>> GetAdaptersAsync()
+    public static async Task<IReadOnlyList<Adapter>> GetAdaptersAsync()
     {
-      return GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
+      var adapters = await GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
+
+      return await Task.WhenAll(adapters.Select(Adapter.CreateAsync));
+    }
+
+    // Normalize a 16, 32 or 128 bit UUID.
+    public static string NormalizeUUID(string uuid)
+    {
+      // TODO: Improve this validation.
+      if (uuid.Length == 4) {
+        return $"0000{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+      }
+      else if (uuid.Length == 8) {
+        return $"{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+      }
+      else if (uuid.Length == 36) {
+        return uuid.ToLowerInvariant();
+      }
+      else {
+        throw new ArgumentException($"'{uuid}' isn't a valid 16, 32 or 128 bit UUID.");
+      }
     }
 
     /// <param name="interfaceName">The interface to search for</param>

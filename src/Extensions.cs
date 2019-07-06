@@ -8,12 +8,14 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 {
   public static class Extensions
   {
-    public static Task<IReadOnlyList<IDevice1>> GetDevicesAsync(this IAdapter1 adapter)
+    public static async Task<IReadOnlyList<Device>> GetDevicesAsync(this IAdapter1 adapter)
     {
-      return BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
+      var devices = await BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
+
+      return await Task.WhenAll(devices.Select(Device.CreateAsync));
     }
 
-    public static async Task<IDevice1> GetDeviceAsync(this IAdapter1 adapter, string deviceAddress)
+    public static async Task<Device> GetDeviceAsync(this IAdapter1 adapter, string deviceAddress)
     {
       var devices = await BlueZManager.GetProxiesAsync<IDevice1>(BluezConstants.DeviceInterface, adapter);
 
@@ -32,38 +34,29 @@ namespace HashtagChris.DotNetBlueZ.Extensions
         throw new Exception($"{matches.Count} devices found with the address {deviceAddress}!");
       }
 
-      return matches.FirstOrDefault();
+      var dev = matches.FirstOrDefault();
+      if (dev != null)
+      {
+        return await Device.CreateAsync(dev);
+      }
+      return null;
     }
 
-
-    public static Task<IDisposable> WatchDevicesAddedAsync(this IAdapter1 adapter, Action<IDevice1> handler)
+    public static Task<IDisposable> WatchDevicesAddedAsync(this IAdapter1 adapter, Action<Device> handler)
     {
-      void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
+      async void OnDeviceAdded((ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces) args)
       {
         if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, adapter))
         {
           var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
-          handler(device);
+
+          var dev = await Device.CreateAsync(device);
+          handler(dev);
         }
       }
 
       var objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
       return objectManager.WatchInterfacesAddedAsync(OnDeviceAdded);
-    }
-
-    public static Task<IDisposable> WatchDevicesRemovedAsync(this IAdapter1 adapter, Action<IDevice1> handler)
-    {
-      void OnDeviceAdded((ObjectPath objectPath, String[] interfaces) args)
-      {
-        if (BlueZManager.IsMatch(BluezConstants.DeviceInterface, args.objectPath, args.interfaces, adapter))
-        {
-          var device = Connection.System.CreateProxy<IDevice1>(BluezConstants.DbusService, args.objectPath);
-          handler(device);
-        }
-      }
-
-      var objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
-      return objectManager.WatchInterfacesRemovedAsync(OnDeviceAdded);
     }
 
     public static async Task<IGattService1> GetServiceAsync(this IDevice1 device, string serviceUUID)
@@ -72,7 +65,9 @@ namespace HashtagChris.DotNetBlueZ.Extensions
 
       foreach (var service in services)
       {
-        if (await service.GetUUIDAsync() == serviceUUID)
+        var uuid = await service.GetUUIDAsync();
+        // Console.WriteLine($"Checking {uuid}");
+        if (String.Equals(uuid, serviceUUID, StringComparison.OrdinalIgnoreCase))
         {
           return service;
         }
@@ -81,15 +76,18 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       return null;
     }
 
-    public static async Task<IGattCharacteristic1> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
+    public static async Task<GattCharacteristic> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
     {
       var characteristics = await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
 
       foreach (var characteristic in characteristics)
       {
-        if (await characteristic.GetUUIDAsync() == characteristicUUID)
+        var uuid = await characteristic.GetUUIDAsync();
+        // Console.WriteLine($"Checking {uuid}");
+        if (String.Equals(uuid, characteristicUUID, StringComparison.OrdinalIgnoreCase))
         {
-          return characteristic;
+          var ch = await GattCharacteristic.CreateAsync(characteristic);
+          return ch;
         }
       }
 

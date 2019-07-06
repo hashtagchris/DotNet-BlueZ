@@ -16,6 +16,10 @@ Uses [Tmds.DBus](https://github.com/tmds/Tmds.DBus) to access D-Bus. Tmds.DBus.T
 dotnet add package HashtagChris.DotNetBlueZ --version 1.1.0-alpha
 ```
 
+# Events
+
+C# events are available for several properties. Events are useful for properly handling disconnects and reconnects.
+
 # Usage
 
 ## Get a Bluetooth adapter
@@ -36,39 +40,51 @@ IAdapter1 adapter = await BlueZManager.GetAdapterAsync(adapterName: "hci0");
 ## Scan for Bluetooth devices
 
 ```C#
+adapter.DeviceFound += adapter_DeviceFoundAsync;
+
 await adapter.StartDiscoveryAsync();
 ...
 await adapter.StopDiscoveryAsync();
 ```
 
-You can optionally use the extension method `IAdapter1.WatchDevicesAddedAsync` to monitor for new devices being found during the scan.
-
 ## Get Devices
 
+`adapter.DeviceFound` (above) will be called immediately for existing devices, and as new devices show up during scanning; `eventArgs.IsStateChange` can be used to distinguish between existing and new devices. Alternatively you can can use `GetDevicesAsync`:
+
 ```C#
-IReadOnlyList<IDevice1> devices = await adapter.GetDevicesAsync();
+IReadOnlyList<Device> devices = await adapter.GetDevicesAsync();
 ```
 
 ## Connect to a Device
+
+```C#
+device.Connected += device_ConnectedAsync;
+device.Disconnected += device_DisconnectedAsync;
+device.ServicesResolved += device_ServicesResolvedAsync;
+
+await device.ConnectAsync();
+```
+
+Alternatively you can wait for "Connected" and "ServicesResolved" to equal true:
 
 ```C#
 TimeSpan timeout = TimeSpan.FromSeconds(15);
 
 await device.ConnectAsync();
 await device.WaitForPropertyValueAsync("Connected", value: true, timeout);
+await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
+
 ```
 
 ## Retrieve a GATT Service and Characteristic
+
+Prerequisite: You must be connected to a device and services must be resolved. You may need to pair with the device in order to use some services.
 
 Example using GATT Device Information Service UUIDs.
 
 ```C#
 string serviceUUID = "0000180a-0000-1000-8000-00805f9b34fb";
 string characteristicUUID = "00002a24-0000-1000-8000-00805f9b34fb";
-
-TimeSpan timeout = TimeSpan.FromSeconds(15);
-
-await device.WaitForPropertyValueAsync("ServicesResolved", value: true, timeout);
 
 IGattService1 service = await device.GetServiceAsync(serviceUUID);
 IGattCharacteristic1 characteristic = await service.GetCharacteristicAsync(characteristicUUID);
@@ -80,6 +96,28 @@ IGattCharacteristic1 characteristic = await service.GetCharacteristicAsync(chara
 byte[] value = await characteristic.ReadValueAsync(timeout);
 
 string modelName = Encoding.UTF8.GetString(value);
+```
+
+## Subscribe to GATT Characteristic Notifications
+
+```C#
+characteristic.Value += characteristic_Value;
+...
+
+private static async Task characteristic_Value(GattCharacteristic characteristic, GattCharacteristicValueEventArgs e)
+{
+  try
+  {
+    Console.WriteLine($"Characteristic value (hex): {BitConverter.ToString(e.Value)}");
+
+    Console.WriteLine($"Characteristic value (UTF-8): \"{Encoding.UTF8.GetString(e.Value)}\"");
+  }
+  catch (Exception ex)
+  {
+    Console.Error.WriteLine(ex);
+  }
+}
+
 ```
 
 # Reference
