@@ -13,7 +13,7 @@ Uses [Tmds.DBus](https://github.com/tmds/Tmds.DBus) to access D-Bus. Tmds.DBus.T
 # Installation
 
 ```bash
-dotnet add package HashtagChris.DotNetBlueZ --version 1.1.0-alpha
+dotnet add package HashtagChris.DotNetBlueZ
 ```
 
 # Events
