@@ -24,7 +24,6 @@ namespace HashtagChris.DotNetBlueZ
         m_proxy = proxy,
       };
 
-      await proxy.StartNotifyAsync();
       characteristic.m_propertyWatcher = await proxy.WatchPropertiesAsync(characteristic.OnPropertyChanges);
 
       return characteristic;
@@ -44,7 +43,9 @@ namespace HashtagChris.DotNetBlueZ
       add
       {
         m_value += value;
-        FireEventForCurrentCharacteristicValue();
+
+        // Subscribe here instead of CreateAsync, because not all GATT characteristics are notifable.
+        SubscribeAndReadCurrentValue();
       }
       remove
       {
@@ -53,35 +54,6 @@ namespace HashtagChris.DotNetBlueZ
     }
 
     public ObjectPath ObjectPath => m_proxy.ObjectPath;
-
-    private async void FireEventForCurrentCharacteristicValue()
-    {
-      try
-      {
-        var options = new Dictionary<string, object>();
-        var value = await m_proxy.ReadValueAsync(options);
-        m_value?.Invoke(this, new GattCharacteristicValueEventArgs(value, isStateChange: false));
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error retrieving the current characteristic value: {ex}");
-      }
-    }
-
-    private void OnPropertyChanges(PropertyChanges changes)
-    {
-      Console.WriteLine("OnPropertyChanges called.");
-
-      foreach (var pair in changes.Changed)
-      {
-        switch (pair.Key)
-        {
-          case "Value":
-            m_value?.Invoke(this, new GattCharacteristicValueEventArgs((byte[])pair.Value));
-            break;
-        }
-      }
-    }
 
     public Task<byte[]> ReadValueAsync(IDictionary<string, object> Options)
     {
@@ -131,6 +103,36 @@ namespace HashtagChris.DotNetBlueZ
     public Task<IDisposable> WatchPropertiesAsync(Action<PropertyChanges> handler)
     {
       return m_proxy.WatchPropertiesAsync(handler);
+    }
+
+    private async void SubscribeAndReadCurrentValue()
+    {
+      try
+      {
+        await m_proxy.StartNotifyAsync();
+
+        // Reading the current value will trigger OnPropertyChanges.
+        var options = new Dictionary<string, object>();
+        var value = await m_proxy.ReadValueAsync(options);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error retrieving the current characteristic value: {ex}");
+      }
+    }
+
+    private void OnPropertyChanges(PropertyChanges changes)
+    {
+      // Console.WriteLine("OnPropertyChanges called.");
+      foreach (var pair in changes.Changed)
+      {
+        switch (pair.Key)
+        {
+          case "Value":
+            m_value?.Invoke(this, new GattCharacteristicValueEventArgs((byte[])pair.Value));
+            break;
+        }
+      }
     }
 
     private IGattCharacteristic1 m_proxy;

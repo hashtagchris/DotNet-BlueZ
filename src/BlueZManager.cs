@@ -32,6 +32,24 @@ namespace HashtagChris.DotNetBlueZ
       return await Task.WhenAll(adapters.Select(Adapter.CreateAsync));
     }
 
+    // Normalize a 16, 32 or 128 bit UUID.
+    public static string NormalizeUUID(string uuid)
+    {
+      // TODO: Improve this validation.
+      if (uuid.Length == 4) {
+        return $"0000{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+      }
+      else if (uuid.Length == 8) {
+        return $"{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+      }
+      else if (uuid.Length == 36) {
+        return uuid.ToLowerInvariant();
+      }
+      else {
+        throw new ArgumentException($"'{uuid}' isn't a valid 16, 32 or 128 bit UUID.");
+      }
+    }
+
     /// <param name="interfaceName">The interface to search for</param>
     /// <param name="rootObject">The DBus object to search under. Can be null</param>
     internal static async Task<IReadOnlyList<T>> GetProxiesAsync<T>(string interfaceName, IDBusObject rootObject)
