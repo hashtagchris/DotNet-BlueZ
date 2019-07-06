@@ -11,9 +11,10 @@ namespace subscribeToCharacteristic
   class Program
   {
     // TODO: Is there a good characteristic that works for a wide variety of people?
-    // The iPhone doesn't seem to actually update current time subscribers.
-    private const string DefaultServiceUUID = GattConstants.CurrentTimeServiceUUID;
-    private const string DefaultCharacteristicUUID = GattConstants.CurrentTimeCharacteristicUUID;
+    // Battery level doesn't work because BlueZ gives that a separate interface.
+    // Current time seems promising, but the iPhone doesn't seem to notify current time subscribers.
+    private const string DefaultServiceUUID = GattConstants.ANCServiceUUID;
+    private const string DefaultCharacteristicUUID = GattConstants.ANCSNotificationSourceUUID;
 
     private static string s_deviceFilter;
     private static string s_serviceUUID;
@@ -28,7 +29,7 @@ namespace subscribeToCharacteristic
         Console.WriteLine("Usage: subscribeToCharacteristic <deviceAddress>|<deviceNameSubstring> [adapterName] [serviceUUID characteristicUUID]");
         Console.WriteLine(@"Examples:
   subscribeToCharacteristic phone
-  subscribeToCharacteristic myFirstPeripheral hci0 CAFE CFFE (see https://github.com/hashtagchris/early-iOS-BluetoothLowEnergy-tests/tree/master/myFirstPeripheral)");
+  subscribeToCharacteristic 8C:8E:F2:AB:73:76 hci0 CAFE CFFE (see https://github.com/hashtagchris/early-iOS-BluetoothLowEnergy-tests/tree/master/myFirstPeripheral)");
         Console.WriteLine();
         Console.WriteLine($"Default service:        {DefaultServiceUUID}");
         Console.WriteLine($"Default characteristic: {DefaultCharacteristicUUID}");
@@ -211,8 +212,25 @@ namespace subscribeToCharacteristic
           return;
         }
 
+        Console.WriteLine();
+
         // Subscribe to the characteristic's value. Be notified of updates.
         characteristic.Value += characteristic_Value;
+
+        // Attempt to read the current value. Some characteristics only support Notify.
+        byte[] value;
+        try
+        {
+          Console.WriteLine("Reading current characteristic value...");
+          value = await characteristic.GetValueAsync();
+        }
+        catch (Exception ex)
+        {
+          Console.Error.WriteLine($"Error reading characteristic value: {ex.Message}");
+          return;
+        }
+
+        PrintCharacteristicValue(s_characteristicUUID, value);
       }
       catch (Exception ex)
       {
@@ -225,30 +243,35 @@ namespace subscribeToCharacteristic
       try
       {
         var uuid = await characteristic.GetUUIDAsync();
-        // Console.WriteLine($"UUID: {uuid}; Status change: {e.IsStateChange}");
-
-        // Print the characteristic value
-        Console.WriteLine();
-        if (String.Equals(uuid, GattConstants.CurrentTimeCharacteristicUUID, StringComparison.OrdinalIgnoreCase))
-        {
-          var currentTime = ReadCurrentTime(e.Value);
-          Console.WriteLine($"Current time: {currentTime}");
-        }
-        else
-        {
-          // Default
-          Console.WriteLine($"[{DateTime.Now}] Characteristic value (hex): {BitConverter.ToString(e.Value)}");
-          try
-          {
-            var stringValue = Encoding.UTF8.GetString(e.Value);
-            Console.WriteLine($"[{DateTime.Now}] Characteristic value (UTF-8): \"{stringValue}\"");
-          }
-          catch (Exception) {}
-        }
+        PrintCharacteristicValue(uuid, e.Value);
       }
       catch (Exception ex)
       {
         Console.Error.WriteLine(ex);
+      }
+    }
+
+    private static void PrintCharacteristicValue(string uuid, byte[] value)
+    {
+      if (String.Equals(uuid, GattConstants.CurrentTimeCharacteristicUUID, StringComparison.OrdinalIgnoreCase))
+      {
+        var currentTime = ReadCurrentTime(value);
+        Console.WriteLine($"Current time: {currentTime}");
+      }
+      else if (String.Equals(uuid, GattConstants.ANCSNotificationSourceUUID, StringComparison.OrdinalIgnoreCase))
+      {
+        PrintAncsDescription(value);
+      }
+      else
+      {
+        // Default
+        Console.WriteLine($"[{DateTime.Now}] Characteristic value (hex): {BitConverter.ToString(value)}");
+        try
+        {
+          var stringValue = Encoding.UTF8.GetString(value);
+          Console.WriteLine($"[{DateTime.Now}] Characteristic value (UTF-8): \"{stringValue}\"");
+        }
+        catch (Exception) {}
       }
     }
 
@@ -258,11 +281,27 @@ namespace subscribeToCharacteristic
       return $"{deviceProperties.Address} (Alias: {deviceProperties.Alias}, RSSI: {deviceProperties.RSSI})";
     }
 
+    private static void PrintAncsDescription(byte[] value)
+    {
+      if (value.Length < 8)
+      {
+        throw new ArgumentException("8 bytes are required for ANCS notifications.");
+      }
+
+      var eventIds = new string[] { "added", "modified", "removed" };
+      var categoryIds = new string[] { "Other", "IncomingCall", "MissedCall", "Voicemail", "Social", "Schedule", "Email", "News", "Health & Fitness", "Business & Finance", "Location", "Entertainment" };
+
+      byte[] notificationUid = new byte[4];
+      Array.Copy(value, 4, notificationUid, 0, 4);
+
+      Console.WriteLine($"{categoryIds[value[2]]} notification {eventIds[value[0]]} (Count: {value[3]}) (UID: {BitConverter.ToString(notificationUid)})");
+    }
+
     private static DateTime ReadCurrentTime(byte[] value)
     {
       if (value.Length < 7)
       {
-        throw new Exception("7+ bytes are required for the current date time.");
+        throw new ArgumentException("7+ bytes are required for the current date time.");
       }
 
       // https://github.com/sputnikdev/bluetooth-gatt-parser/blob/master/src/main/resources/gatt/characteristic/org.bluetooth.characteristic.date_time.xml

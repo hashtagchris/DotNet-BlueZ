@@ -23,10 +23,9 @@ namespace HashtagChris.DotNetBlueZ
     public Device Device { get; }
   }
 
-  public class GattCharacteristicValueEventArgs : BlueZEventArgs
+  public class GattCharacteristicValueEventArgs : EventArgs
   {
-    public GattCharacteristicValueEventArgs(byte[] value, bool isStateChange = true)
-      : base(isStateChange)
+    public GattCharacteristicValueEventArgs(byte[] value)
     {
       Value = value;
     }

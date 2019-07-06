@@ -45,7 +45,7 @@ namespace HashtagChris.DotNetBlueZ
         m_value += value;
 
         // Subscribe here instead of CreateAsync, because not all GATT characteristics are notifable.
-        SubscribeAndReadCurrentValue();
+        Subscribe();
       }
       remove
       {
@@ -105,19 +105,20 @@ namespace HashtagChris.DotNetBlueZ
       return m_proxy.WatchPropertiesAsync(handler);
     }
 
-    private async void SubscribeAndReadCurrentValue()
+    private async void Subscribe()
     {
       try
       {
         await m_proxy.StartNotifyAsync();
 
-        // Reading the current value will trigger OnPropertyChanges.
-        var options = new Dictionary<string, object>();
-        var value = await m_proxy.ReadValueAsync(options);
+        // Is there a way to check if a characteristic supports Read?
+        // // Reading the current value will trigger OnPropertyChanges.
+        // var options = new Dictionary<string, object>();
+        // var value = await m_proxy.ReadValueAsync(options);
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"Error retrieving the current characteristic value: {ex}");
+        Console.Error.WriteLine($"Error subscribing to characteristic value: {ex}");
       }
     }
 
