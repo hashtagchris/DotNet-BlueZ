@@ -31,7 +31,6 @@ namespace HashtagChris.DotNetBlueZ
 
     public void Dispose()
     {
-      Console.WriteLine("GattCharacteristic disposing.");
       m_propertyWatcher?.Dispose();
       m_propertyWatcher = null;
 
