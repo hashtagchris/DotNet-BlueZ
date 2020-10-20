@@ -99,10 +99,9 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       return null;
     }
 
-    public static async Task<IGattCharacteristic1[]> GetCharacteristicsAsync(this IGattService1 service)
+    public static async Task<IReadOnlyList<IGattCharacteristic1>> GetCharacteristicsAsync(this IGattService1 service)
     {
-        var characteristics = await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
-        return characteristics.ToArray();
+        return await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
     }
 
     public static async Task<byte[]> ReadValueAsync(this IGattCharacteristic1 characteristic, TimeSpan timeout)
