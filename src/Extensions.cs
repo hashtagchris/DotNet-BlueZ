@@ -76,6 +76,11 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       return null;
     }
 
+    public static async Task<IReadOnlyList<GattService1>> GetServicesAsync(this IDevice1 device)
+    {
+        return await BlueZManager.GetProxiesAsync<IGattService1>(BluezConstants.GattServiceInterface, device);
+    }
+
     public static async Task<GattCharacteristic> GetCharacteristicAsync(this IGattService1 service, string characteristicUUID)
     {
       var characteristics = await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
@@ -92,6 +97,11 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       }
 
       return null;
+    }
+
+    public static async Task<IReadOnlyList<IGattCharacteristic1>> GetCharacteristicsAsync(this IGattService1 service)
+    {
+        return await BlueZManager.GetProxiesAsync<IGattCharacteristic1>(BluezConstants.GattCharacteristicInterface, service);
     }
 
     public static async Task<byte[]> ReadValueAsync(this IGattCharacteristic1 characteristic, TimeSpan timeout)
