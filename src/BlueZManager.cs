@@ -8,6 +8,17 @@ namespace HashtagChris.DotNetBlueZ
 {
   public static class BlueZManager
   {
+
+    //Persistent instance of the object manager, creating the manager consumes resources
+    private static IObjectManager _objectManager;
+    
+    //Keeping a list of cached items from the 
+    private static IDictionary<ObjectPath, IDictionary<string, IDictionary<string, object>>> _proxyCache;
+
+    //Locker for accessing cached proxy data
+    public static object _proxyCacheLocker = new object();
+
+
     public static async Task<Adapter> GetAdapterAsync(string adapterName)
     {
       var adapterObjectPath = $"/org/bluez/{adapterName}";
@@ -54,21 +65,70 @@ namespace HashtagChris.DotNetBlueZ
     /// <param name="rootObject">The DBus object to search under. Can be null</param>
     internal static async Task<IReadOnlyList<T>> GetProxiesAsync<T>(string interfaceName, IDBusObject rootObject)
     {
-      // Console.WriteLine("GetProxiesAsync called.");
-      var objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
-      var objects = await objectManager.GetManagedObjectsAsync();
+      //Upon first run do make sure the proxy is set in the initial cache
+      if (_proxyCache == null) { _proxyCache = await RebuildProxyCache(); }
 
-      var matchingObjectPaths = objects
-          .Where(obj => IsMatch(interfaceName, obj.Key, obj.Value, rootObject))
-          .Select(obj => obj.Key);
+      // Consume the object from the proxycache
+      var matchingObjectPaths = _proxyCache
+        .Where(obj => IsMatch(interfaceName, obj.Key, obj.Value, rootObject))
+        .Select(obj => obj.Key).ToList();
 
       var proxies = matchingObjectPaths
-          .Select(objectPath => Connection.System.CreateProxy<T>(BluezConstants.DbusService, objectPath))
-          .ToList();
+        .Select(objectPath => Connection.System.CreateProxy<T>(BluezConstants.DbusService, objectPath))
+        .ToList();
 
-      // Console.WriteLine($"GetProxiesAsync returning {proxies.Count} proxies of type {typeof(T)}.");
       return proxies;
     }
+    
+    private static async Task<IDictionary<ObjectPath, IDictionary<string, IDictionary<string, object>>>> RebuildProxyCache()
+    {
+      // Create the object manager and attach the add/remove handlers to update our cache
+      if (_objectManager == null)
+      {
+        _objectManager = Connection.System.CreateProxy<IObjectManager>(BluezConstants.DbusService, "/");
+        await _objectManager.WatchInterfacesAddedAsync(AddInstanceToProxyCache, null);
+        await _objectManager.WatchInterfacesRemovedAsync(DropInstanceFromProxyCache, null);
+      }
+      var objectManager = _objectManager;
+      var objects = await objectManager.GetManagedObjectsAsync();
+      return objects;
+    }
+
+    private static void AddInstanceToProxyCache((ObjectPath @object, IDictionary<string, IDictionary<string, object>> interfaces) obj)
+    {
+      lock (_proxyCacheLocker)
+      {
+        if (!_proxyCache.ContainsKey(obj.@object))
+        {
+            _proxyCache.Add(obj.@object, obj.interfaces);
+        }
+      }
+    }
+
+    private static void DropInstanceFromProxyCache((ObjectPath @object, string[] interfaces) obj)
+    {
+      lock (_proxyCacheLocker)
+      {
+        if (_proxyCache.ContainsKey(obj.@object))
+        {
+          //Remove all the indicated interfaces from the cache
+          foreach (var i in obj.interfaces)
+          {
+            if (_proxyCache[obj.@object].ContainsKey(i))
+            {
+              _proxyCache[obj.@object].Remove(i);
+            }
+          }
+
+          //If there are no objects left in the cached element remove the element alltogether
+          if (_proxyCache[obj.@object].Count == 0)
+          {
+            _proxyCache.Remove(obj.@object);
+          }
+        }
+      }
+    }
+
 
     internal static bool IsMatch(string interfaceName, ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces, IDBusObject rootObject)
     {
