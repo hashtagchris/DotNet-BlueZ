@@ -9,6 +9,7 @@ namespace HashtagChris.DotNetBlueZ
         public const string DeviceInterface = "org.bluez.Device1";
         public const string GattServiceInterface = "org.bluez.GattService1";
         public const string GattCharacteristicInterface = "org.bluez.GattCharacteristic1";
+        public const string BatteryInterface = "org.bluez.Battery1";
     }
 
     // https://www.bluetooth.com/specifications/gatt/
