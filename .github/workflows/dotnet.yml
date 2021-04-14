@@ -42,12 +42,6 @@ jobs:
           dotnet clean ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }}
           dotnet build ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }}
           dotnet pack ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }} /p:Version=${{ steps.nbgv.outputs.SemVer2 }}
-      - name: Install GitHub package registry tool
-        run: dotnet tool install --global --verbosity minimal --no-cache gpr
       - name: Push package to package repository
         run: |
-          gpr push \
-            --api-key ${{ secrets.PACKAGE_TOKEN }} \
-            --repository ${{ github.repository }} \
-            --retries 3 \
-            **/*.nupkg
+          dotnet nuget push "**/*.nupkg" --source "github"
