@@ -40,6 +40,7 @@ jobs:
       - name: Build NuGet package
         run: |
           dotnet clean ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }}
+          dotnet build ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }}
           dotnet pack ${{ env.PROJECT_FOLDER }} --configuration ${{ env.CONFIG }} /p:Version=${{ steps.nbgv.outputs.SemVer2 }}
       - name: Install GitHub package registry tool
         run: dotnet tool install --global --verbosity minimal --no-cache gpr
