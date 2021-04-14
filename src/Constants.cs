@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace HashtagChris.DotNetBlueZ
+﻿namespace vestervang.DotNetBlueZ
 {
     public static class BluezConstants
     {
