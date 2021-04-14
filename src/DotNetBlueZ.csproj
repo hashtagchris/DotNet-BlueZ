@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>HashtagChris.DotNetBlueZ</RootNamespace>
-    <PackageReleaseNotes>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</PackageReleaseNotes>
+    <PackageReleaseNotes></PackageReleaseNotes>
     <LangVersion>9</LangVersion>
   </PropertyGroup>
 
