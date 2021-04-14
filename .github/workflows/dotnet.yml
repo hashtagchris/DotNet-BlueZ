@@ -8,7 +8,7 @@ on:
 env:
   CONFIG: Release
   NUGET_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-  PROJECT_FOLDER: MessageLibrary
+  PROJECT_FOLDER: src
 
 jobs:
   release:
