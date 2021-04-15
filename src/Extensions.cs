@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace HashtagChris.DotNetBlueZ.Extensions
+namespace vestervang.DotNetBlueZ
 {
   public static class Extensions
   {

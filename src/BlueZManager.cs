@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace HashtagChris.DotNetBlueZ
+namespace vestervang.DotNetBlueZ
 {
   public static class BlueZManager
   {
@@ -18,48 +18,57 @@ namespace HashtagChris.DotNetBlueZ
     //Locker for accessing cached proxy data
     public static object _proxyCacheLocker = new object();
 
+        public static async Task<Adapter> GetAdapterAsync(string adapterName)
+        {
+            var adapterObjectPath = $"/org/bluez/{adapterName}";
+            var adapter = Connection.System.CreateProxy<IAdapter1>(BluezConstants.DbusService, adapterObjectPath);
 
-    public static async Task<Adapter> GetAdapterAsync(string adapterName)
-    {
-      var adapterObjectPath = $"/org/bluez/{adapterName}";
-      var adapter = Connection.System.CreateProxy<IAdapter1>(BluezConstants.DbusService, adapterObjectPath);
+            try
+            {
+                await adapter.GetAliasAsync();
+            }
+            catch (Exception)
+            {
+                throw new Exception($"Bluetooth adapter {adapterName} not found.");
+            }
 
-      try
-      {
-        await adapter.GetAliasAsync();
-      }
-      catch (Exception)
-      {
-        throw new Exception($"Bluetooth adapter {adapterName} not found.");
-      }
+            return await Adapter.CreateAsync(adapter);
+        }
 
-      return await Adapter.CreateAsync(adapter);
-    }
+        public static async Task<IReadOnlyList<Adapter>> GetAdaptersAsync()
+        {
+            var adapters = await GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
 
-    public static async Task<IReadOnlyList<Adapter>> GetAdaptersAsync()
-    {
-      var adapters = await GetProxiesAsync<IAdapter1>(BluezConstants.AdapterInterface, rootObject: null);
+            return await Task.WhenAll(adapters.Select(Adapter.CreateAsync));
+        }
 
-      return await Task.WhenAll(adapters.Select(Adapter.CreateAsync));
-    }
-
-    // Normalize a 16, 32 or 128 bit UUID.
-    public static string NormalizeUUID(string uuid)
-    {
-      // TODO: Improve this validation.
-      if (uuid.Length == 4) {
-        return $"0000{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
-      }
-      else if (uuid.Length == 8) {
-        return $"{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
-      }
-      else if (uuid.Length == 36) {
-        return uuid.ToLowerInvariant();
-      }
-      else {
-        throw new ArgumentException($"'{uuid}' isn't a valid 16, 32 or 128 bit UUID.");
-      }
-    }
+        // Normalize a 16, 32 or 128 bit UUID.
+        public static string NormalizeUUID(string uuid)
+        {
+            // TODO: Improve this validation.
+            if (uuid.Length == 4)
+            {
+                return $"0000{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+            }
+            else if (uuid.Length == 8)
+            {
+                return $"{uuid}-0000-1000-8000-00805f9b34fb".ToLowerInvariant();
+            }
+            else if (uuid.Length == 36)
+            {
+                return uuid.ToLowerInvariant();
+            }
+            else
+            {
+                throw new ArgumentException($"'{uuid}' isn't a valid 16, 32 or 128 bit UUID.");
+            }
+        }
+        
+        public static async Task<IBattery1> GetBatteryAsync(this IDevice1 device)
+        {
+            var battery = await BlueZManager.GetBatteryAsync(BluezConstants.BatteryInterface, device);
+            return battery;
+        }
 
     /// <param name="interfaceName">The interface to search for</param>
     /// <param name="rootObject">The DBus object to search under. Can be null</param>
@@ -129,20 +138,32 @@ namespace HashtagChris.DotNetBlueZ
       }
     }
 
+        /// <param name="interfaceName">The interface to search for</param>
+        /// <param name="rootObject">The DBus object to search under. Can be null</param>
+        internal static async Task<IBattery1> GetBatteryAsync(string interfaceName, IDBusObject rootObject)
+        {
+            //Console.WriteLine($"GetBatteryAsync called, {interfaceName} looking for {rootObject.ObjectPath}.");
+            var proxy =
+                await Task.Run(() =>
+                    Connection.System.CreateProxy<IBattery1>(BluezConstants.DbusService, rootObject.ObjectPath));
+            return proxy;
+        }
 
-    internal static bool IsMatch(string interfaceName, ObjectPath objectPath, IDictionary<string, IDictionary<string, object>> interfaces, IDBusObject rootObject)
-    {
-      return IsMatch(interfaceName, objectPath, interfaces.Keys, rootObject);
+        internal static bool IsMatch(string interfaceName, ObjectPath objectPath,
+            IDictionary<string, IDictionary<string, object>> interfaces, IDBusObject rootObject)
+        {
+            return IsMatch(interfaceName, objectPath, interfaces.Keys, rootObject);
+        }
+
+        internal static bool IsMatch(string interfaceName, ObjectPath objectPath, ICollection<string> interfaces,
+            IDBusObject rootObject)
+        {
+            if (rootObject != null && !objectPath.ToString().StartsWith($"{rootObject.ObjectPath}/"))
+            {
+                return false;
+            }
+
+            return interfaces.Contains(interfaceName);
+        }
     }
-
-    internal static bool IsMatch(string interfaceName, ObjectPath objectPath, ICollection<string> interfaces, IDBusObject rootObject)
-    {
-      if (rootObject != null && !objectPath.ToString().StartsWith($"{rootObject.ObjectPath}/"))
-      {
-        return false;
-      }
-
-      return interfaces.Contains(interfaceName);
-    }
-  }
 }
