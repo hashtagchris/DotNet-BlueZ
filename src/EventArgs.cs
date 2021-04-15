@@ -1,6 +1,6 @@
 using System;
 
-namespace HashtagChris.DotNetBlueZ
+namespace vestervang.DotNetBlueZ
 {
   public class BlueZEventArgs : EventArgs
   {
