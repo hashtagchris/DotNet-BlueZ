@@ -1,25 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <RootNamespace>HashtagChris.DotNetBlueZ</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DotnetBlueZ</RootNamespace>
   </PropertyGroup>
 
   <!-- NuGet -->
   <PropertyGroup>
-    <PackageId>HashtagChris.DotNetBlueZ</PackageId>
-    <Version>1.3.1</Version>
-    <Authors>Chris Sidi</Authors>
+    <PackageId>DotNetBlueZ</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>Onur Coskun</Authors>
     <Title>Quick and dirty library for BlueZ's D-Bus APIs</Title>
     <Description>A quick and dirty library for BlueZ's D-Bus APIs. Focus is on Bluetooth Low Energy APIs.</Description>
     <PackageTags>BlueZ;net-core;netstandard;Bluetooth;BluetoothLowEnergy;BLE</PackageTags>
-    <RepositoryUrl>https://github.com/hashtagchris/DotNet-BlueZ</RepositoryUrl>
+    <RepositoryUrl>https://github.com/onurcoskun14/DotNet-BlueZ</RepositoryUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Tmds.DBus" Version="0.7.0" />
+    <PackageReference Include="Tmds.DBus" Version="0.16.0" />
     <DotNetCliToolReference Include="Tmds.DBus.Tool" Version="0.7.0" />
   </ItemGroup>
 

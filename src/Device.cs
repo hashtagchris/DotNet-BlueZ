@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace HashtagChris.DotNetBlueZ
+namespace DotnetBlueZ
 {
   public delegate Task DeviceEventHandlerAsync(Device sender, BlueZEventArgs eventArgs);
 

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace HashtagChris.DotNetBlueZ.Extensions
+namespace DotnetBlueZ.Extensions
 {
   public static class Extensions
   {
@@ -144,34 +144,44 @@ namespace HashtagChris.DotNetBlueZ.Extensions
       await watchTask;
     }
 
-    private static (Task, IDisposable) WaitForPropertyValueInternal<T>(IDevice1 obj, string propertyName, T value)
+    private static (Task<bool>, IDisposable) WaitForPropertyValueInternal<T>(IDevice1 obj, string propertyName, T value)
     {
-      var taskSource = new TaskCompletionSource<bool>();
-
-      IDisposable watcher = null;
-      watcher = obj.WatchPropertiesAsync(propertyChanges => {
-        try
+        var taskSource = new TaskCompletionSource<bool>();
+        var isCompleted = false;
+    
+        IDisposable watcher = null;
+        watcher = obj.WatchPropertiesAsync(propertyChanges =>
         {
-          if (propertyChanges.Changed.Any(kvp => kvp.Key == propertyName))
-          {
-            var pair = propertyChanges.Changed.Single(kvp => kvp.Key == propertyName);
-            if (pair.Value.Equals(value))
+            try
             {
-              // Console.WriteLine($"[CHG] {propertyName}: {pair.Value}.");
-              taskSource.SetResult(true);
-              watcher.Dispose();
+                if (isCompleted)
+                {
+                    watcher.Dispose();
+                    return;
+                }
+    
+                if (propertyChanges.Changed.Any(kvp => kvp.Key == propertyName))
+                {
+                    var pair = propertyChanges.Changed.Single(kvp => kvp.Key == propertyName);
+                    if (pair.Value.Equals(value))
+                    {
+                        // Console.WriteLine($"[CHG] {propertyName}: {pair.Value}.");
+                        isCompleted = true;
+                        taskSource.SetResult(true);
+                        watcher.Dispose();
+                    }
+                }
             }
-          }
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"Exception: {ex}");
-          taskSource.SetException(ex);
-          watcher.Dispose();
-        }
-      });
-
-      return (taskSource.Task, watcher);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex}");
+                isCompleted = true;
+                taskSource.SetException(ex);
+                watcher.Dispose();
+            }
+        });
+    
+        return (taskSource.Task, watcher);
     }
   }
 }

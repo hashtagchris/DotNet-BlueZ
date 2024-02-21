@@ -10,7 +10,7 @@ SCRIPT_PATH=`dirname $0`
 
 NUGET_PKG=$1
 if [ -z "$NUGET_PKG" ]; then
-  NUGET_PKG=`find $SCRIPT_PATH/.. -name "HashtagChris.DotNetBlueZ.*.nupkg" | sort | tail -1`
+  NUGET_PKG=`find $SCRIPT_PATH/.. -name "DotnetBlueZ.*.nupkg" | sort | tail -1`
 fi
 
 if [ -z "$NUGET_PKG" ]; then
