@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
-namespace HashtagChris.DotNetBlueZ
+namespace DotnetBlueZ
 {
   public static class BlueZManager
   {

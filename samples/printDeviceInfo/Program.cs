@@ -1,5 +1,5 @@
 ﻿// This program is the equivalent of the sample code posted to https://stackoverflow.com/questions/53933345/utilizing-bluetooth-le-on-raspberry-pi-using-net-core/56623587#56623587
-// This uses HashtagChris.DotNetBlueZ instead of Tmds.DBus directly.
+// This uses DotnetBlueZ instead of Tmds.DBus directly.
 //
 // Use the `bluetoothctl` command-line tool or the Bluetooth Manager GUI to scan for devices and possibly pair.
 // Then you can use this program to connect and print "Device Information" GATT service values.
@@ -7,8 +7,8 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using HashtagChris.DotNetBlueZ;
-using HashtagChris.DotNetBlueZ.Extensions;
+using DotnetBlueZ;
+using DotnetBlueZ.Extensions;
 
 class Program
 {
